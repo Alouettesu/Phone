@@ -27,8 +27,6 @@ def findAnyOf(where, what: list, start=None, finish=None):
     return min([i for i in idx if i >= 0], default=-1)
 
 def sim_switch_on():
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setup(config.SIM_POWER_PIN, GPIO.OUT, initial=GPIO.LOW)
     time.sleep(1)
     GPIO.output(config.SIM_POWER_PIN, GPIO.HIGH)
     time.sleep(2)
@@ -142,6 +140,9 @@ class OutputProtocol(asyncio.Protocol):
             else:
                 del self.lines[0]
 
+    def setMtsApn(self):
+        self.transport.write(b'AT+CSTT="internet.mts.ru","mts","mts"\r\n')
+
     def deleteSms(self):
         self.transport.write(b'AT+CMGDA="DEL READ"\r\n')
 
@@ -156,6 +157,9 @@ class OutputProtocol(asyncio.Protocol):
         self.transport.loop.stop()
 
 
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(config.SIM_POWER_PIN, GPIO.OUT, initial=GPIO.LOW)
+time.sleep(1)
 
 loop = asyncio.get_event_loop()
 coro = serial_asyncio.create_serial_connection(loop, OutputProtocol, "/dev/serial0", baudrate=19200, timeout=1, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE)
@@ -166,3 +170,4 @@ except KeyboardInterrupt:
     pass
 protocol.checkSmsTimer.cancel()
 loop.close()
+GPIO.cleanup(config.SIM_POWER_PIN)
