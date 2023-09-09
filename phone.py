@@ -2,14 +2,11 @@ import asyncio
 import serial_asyncio
 import serial
 from enum import Enum
-import threading
 from datetime import datetime
 import vksend
 import RPi.GPIO as GPIO
 import time
 import config
-
-CheckSmsInterval = 10
 
 class Stage(Enum):
     Startup = 1
@@ -87,8 +84,8 @@ class OutputProtocol(asyncio.Protocol):
 
     def checkSimPower(self):
         self.transport.write(b'AT\r\n')
-        self.powerTimer = threading.Timer(2, self.simPowerTimeout)
-        self.powerTimer.start()
+        
+        self.powerTimer = self.transport.loop.call_later(2, self.simPowerTimeout)
 
     def simPowerTimeout(self):
         sim_switch_on()
@@ -147,11 +144,11 @@ class OutputProtocol(asyncio.Protocol):
         self.transport.write(b'AT+CMGDA="DEL READ"\r\n')
 
     def checkSms(self):
-        self.transport.write(b'AT+CMGL="ALL",0\r\n')
         if hasattr(self, 'checkSmsTimer') and self.checkSmsTimer is not None:
             self.checkSmsTimer.cancel()
-        self.checkSmsTimer = threading.Timer(CheckSmsInterval, self.checkSms)
-        self.checkSmsTimer.start()
+        self.transport.write(b'AT+CMGL="ALL",0\r\n')
+        self.checkSmsTimer = self.transport.loop.call_later(config.CheckSmsInterval, self.checkSms)
+
 
     def connection_lost(self, exc):
         self.transport.loop.stop()
@@ -168,6 +165,6 @@ try:
     loop.run_forever()
 except KeyboardInterrupt:
     pass
-protocol.checkSmsTimer.cancel()
-loop.close()
-GPIO.cleanup(config.SIM_POWER_PIN)
+finally:
+    loop.close()
+    GPIO.cleanup(config.SIM_POWER_PIN)
