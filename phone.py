@@ -110,7 +110,7 @@ class OutputProtocol(asyncio.Protocol):
     def processLines(self):
         while self.lines:
             line = self.lines[0]
-            if b'AT' in line and self.stage == Stage.CheckSimPower:
+            if (b'AT' in line or b'RDY' in line) and self.stage == Stage.CheckSimPower:
                 self.powerTimer.cancel()
                 self.stage = Stage.Work
                 self.checkSms()
